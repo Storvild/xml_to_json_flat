@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tag1>
+    <tag2>
+        <item1>1</item1>
+        <item2>2</item2>
+        <itemlist> 
+            <item3>3</item3>
+            <item4>4</item4>
+        </itemlist>
+    </tag2>
+    <tag2>
+        <item1>11</item1>
+        <item2>22</item2>
+        <itemlist> 
+            <item3>33</item3>
+            <item4>44</item4>
+        </itemlist>
+    </tag2>
+</tag1>
