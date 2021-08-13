@@ -107,7 +107,7 @@ def xml_to_json_flat(inxml, intagname, inmaxlevel=0):
     tagnamesplit = intagname.split('/')
     tagname = tagnamesplit[-1]
     parenttags = tagnamesplit[:-1]
-    tags: ResultSet = soup.find_all(tagname)  # Список тегов
+    tags = soup.find_all(tagname)  # Список тегов
 
     json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel)
     json_list = json_fields_sync(json_list)
