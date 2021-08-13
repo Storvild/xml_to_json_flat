@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from bs4.element import ResultSet
 
 
-def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0):
+def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
     """
     Получение одной плоской записи из тега
     Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -33,7 +33,8 @@ def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0):
                     get_json_rec(item, inpreffix+'_'+item.name, level+1)
         else:
             if inpreffix not in data:  # Добавлять только если данных нет
-                data[inpreffix] = inxmlobj.text
+                if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
+                    data[inpreffix] = inxmlobj.text
     get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
     return data
 
@@ -62,7 +63,7 @@ def check_parent(inxmlobj, inparenttags):
     return True
 
 
-def get_records(xml_item_list, inparenttags=[], inmaxlevel=0):
+def get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
     """ Получение записей """
     res = []
     if type(inparenttags) == str:
@@ -73,7 +74,7 @@ def get_records(xml_item_list, inparenttags=[], inmaxlevel=0):
             preffix = ''
             if inparenttags:
                 preffix = '_'.join(inparenttags) + '_'
-            rec = xmlobj_to_json_flat(item, preffix, inmaxlevel)
+            rec = xmlobj_to_json_flat(item, preffix, inmaxlevel, infields)
             res.append(rec)
     return res
 
@@ -95,7 +96,7 @@ def json_fields_sync(inlist):
     return res
 
 
-def xml_to_json_flat(inxml, intagname, inmaxlevel=0):
+def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
     soup = BeautifulSoup(inxml, 'xml')
     # Разделяем parent-тег
     tagnamesplit = intagname.split('/')
@@ -103,7 +104,7 @@ def xml_to_json_flat(inxml, intagname, inmaxlevel=0):
     parenttags = tagnamesplit[:-1]
     tags = soup.find_all(tagname)  # Список тегов
 
-    json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel)
+    json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
     json_list = json_fields_sync(json_list)
     return json_list
 
@@ -112,12 +113,13 @@ def main():
     os.chdir(os.path.dirname(__file__))
     #intagname = 'tag2'  # Ищем все теги tag2 независимо в какие родительские теги он входит
     intagname: str = 'tag1/tag2'  # Ищем теги с именем tag2, который вложен в тег tag1
-    #infields = ""
+    #infields = ['tag1_tag2_item1', 'tag1_tag2_itemlist_item3']
+    infields = []
 
     with open(r'xml_examples/example01.xml', 'r', encoding='utf-8') as f:
         inxml = f.read()
 
-    json_list = xml_to_json_flat(inxml, intagname)
+    json_list = xml_to_json_flat(inxml, intagname, infields=infields)
 
     pprint(json_list)
     
