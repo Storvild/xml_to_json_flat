@@ -7,6 +7,20 @@
 pip install bs4
 ```
 
+### Выполнение
+Результат конвертации из xml_examples/example01.xml:
+```json
+[{'tag2_item1': '1',
+  'tag2_item2': '2',
+  'tag2_itemlist_item3': '3',
+  'tag2_itemlist_item4': '4'},
+ {'tag2_item1': '11',
+  'tag2_item2': '22',
+  'tag2_itemlist_item3': '33',
+  'tag2_itemlist_item4': '44'}]
+```
+
+
 ### Ф-ция для PostgreSQL
 
 Если в PostgreSQL установлено расширение plpython3u, можно создать функцию xml_to_json_flat (из скрипта xml_to_json_flat.sql)
@@ -38,3 +52,8 @@ FROM jsonb_array_elements(xml_to_json_flat('
 </tag1>', 'tag2')
 )
 ```
+Результат:
+| item1 | item2 |
+| ------ | ------ |
+| 1 | 2 |
+| 11 | 22 |
