@@ -21,7 +21,6 @@ def get_fields():
                     res.append(tagobj.name)
             else:
                 res.append(tagobj.name)
-    #plpy.info(res)
     return res
 
 
@@ -48,7 +47,7 @@ def get_records(xml_item_list, fields):
 
 
 os.chdir(os.path.dirname(__file__))
-infields = ''
+infields = '["item2"]'
 intagname = 'tag2'
 with open('xml_examples/example01.xml') as f:
     inxml = f.read()
