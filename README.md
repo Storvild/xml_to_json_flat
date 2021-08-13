@@ -3,16 +3,21 @@
 
 В проекте используется BeautifulSoup4  
 Установка:   
-```
+```sh
 pip install bs4
 ```
 
+### Ф-ция для PostgreSQL
+
+Если в PostgreSQL установлено расширение plpython3u, можно создать функцию xml_to_json_flat (из скрипта xml_to_json_flat.sql)
+
 Использование в PostgreSQL:  
 
-```
+```sql
 SELECT value->>'item1' AS item1    
      , value->>'item2' AS item2 
-FROM jsonb_array_elements(xml_to_json_flat('<?xml version="1.0" encoding="utf-8"?>
+FROM jsonb_array_elements(xml_to_json_flat('
+<?xml version="1.0" encoding="utf-8"?>
 <tag1>
     <tag2>
         <item1>1</item1>
