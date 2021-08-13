@@ -37,6 +37,7 @@ def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0):
     get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
     return data
 
+
 def check_parent(inxmlobj, inparenttags):
     """
     Проверка что тег inxmlobj вложен в родительские теги inparenttags
@@ -60,15 +61,6 @@ def check_parent(inxmlobj, inparenttags):
             return False
     return True
 
-def test_check_parent():
-    """ Тест ф-ции check_parent """
-    inxml = '<parent1><parent2><mytag1>1</mytag1></parent2></parent1>'
-    soup = BeautifulSoup(inxml, 'xml')
-    tag = soup.find_all('mytag1')
-    #res = check_parent(tag[0], ['[document]', 'parent1','parent2'])
-    res = check_parent(tag[0], '[document]/parent1/parent2')
-    print(res)
-
 
 def get_records(xml_item_list, inparenttags=[], inmaxlevel=0):
     """ Получение записей """
@@ -85,6 +77,7 @@ def get_records(xml_item_list, inparenttags=[], inmaxlevel=0):
             res.append(rec)
     return res
 
+
 def json_fields_sync(inlist):
     """ Синхронизация колонок (приведение к одинаковому количеству во всех строках) """
     res = []
@@ -100,6 +93,7 @@ def json_fields_sync(inlist):
                 new_rec[fieldname] = None
         res.append(new_rec)
     return res
+
 
 def xml_to_json_flat(inxml, intagname, inmaxlevel=0):
     soup = BeautifulSoup(inxml, 'xml')
@@ -118,8 +112,7 @@ def main():
     os.chdir(os.path.dirname(__file__))
     #intagname = 'tag2'  # Ищем все теги tag2 независимо в какие родительские теги он входит
     intagname: str = 'tag1/tag2'  # Ищем теги с именем tag2, который вложен в тег tag1
-    infields: Optional[str] = None
-    inxml: Optional[str] = None
+    #infields = ""
 
     with open(r'xml_examples/example01.xml', 'r', encoding='utf-8') as f:
         inxml = f.read()
