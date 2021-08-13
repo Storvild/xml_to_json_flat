@@ -7,8 +7,35 @@
 pip install bs4
 ```
 
-### Выполнение
-Результат конвертации из xml_examples/example01.xml:
+### Использование
+```python
+import json
+from xml_to_json_flat import xml_to_json_flat
+xml = """<?xml version="1.0" encoding="utf-8"?>
+<tag1>
+    <tag2>
+        <item1>1</item1>
+        <item2>2</item2>
+        <itemlist> 
+            <item3>3</item3>
+            <item4>4</item4>
+        </itemlist>
+    </tag2>
+    <tag2>
+        <item1>11</item1>
+        <item2>22</item2>
+        <itemlist> 
+            <item3>33</item3>
+            <item4>44</item4>
+        </itemlist>
+    </tag2>
+</tag1>"""
+res = xml_to_json_flat(xml, 'tag1/tag2')
+json = json.dumps(res, ensure_ascii=False, indent=4, sort_keys=True)
+print(json)
+ 
+```
+Результат:
 ```json
 [{'tag2_item1': '1',
   'tag2_item2': '2',
