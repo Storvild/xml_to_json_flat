@@ -118,7 +118,7 @@ $BODY$
 
     soup = BeautifulSoup(inxml, 'xml')
 
-    res = xml_to_json_flat(inxml, intagname)
+    res = xml_to_json_flat(inxml, intagname, inmaxlevel)
 
     # Если тег не нашелся, возвращаем NULL
     if not res:
