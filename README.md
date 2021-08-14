@@ -12,6 +12,7 @@ pip install beautifulsoup4
 * inxml: str - XML в текстовом виде   
 * intagname: str - Наименование тега или путь к тегу tag1/tag2.   
 * inmaxlevel: int - Кол-во уровней обрабатываемых рекурсией. 0 - без ограничений.
+* infields: list - Список полей, которые попадут в результирующий json
 
 ### Использование
 ```python

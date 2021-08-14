@@ -22,7 +22,7 @@ $BODY$
     from bs4 import BeautifulSoup
     
 
-    def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0):
+    def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
         """
         Получение одной плоской записи из тега
         Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -46,7 +46,8 @@ $BODY$
                         get_json_rec(item, inpreffix+'_'+item.name, level+1)
             else:
                 if inpreffix not in data:  # Добавлять только если данных нет
-                    data[inpreffix] = inxmlobj.text
+                    if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
+                        data[inpreffix] = inxmlobj.text
         get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
         return data
 
@@ -73,7 +74,7 @@ $BODY$
                 return False
         return True
 
-    def get_records(xml_item_list, inparenttags=[], inmaxlevel=0):
+    def get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
         """ Получение записей """
         res = []
         if type(inparenttags) == str:
@@ -84,7 +85,7 @@ $BODY$
                 preffix = ''
                 if inparenttags:
                     preffix = '_'.join(inparenttags) + '_'
-                rec = xmlobj_to_json_flat(item, preffix, inmaxlevel)
+                rec = xmlobj_to_json_flat(item, preffix, inmaxlevel, infields=infields)
                 res.append(rec)
         return res
 
@@ -104,7 +105,7 @@ $BODY$
             res.append(new_rec)
         return res
 
-    def xml_to_json_flat(inxml, intagname, inmaxlevel=0):
+    def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
         soup = BeautifulSoup(inxml, 'xml')
         # Разделяем parent-тег
         tagnamesplit = intagname.split('/')
@@ -112,13 +113,11 @@ $BODY$
         parenttags = tagnamesplit[:-1]
         tags = soup.find_all(tagname)  # Список тегов
         
-        json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel)
+        json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
         json_list = json_fields_sync(json_list)
         return json_list
 
-    soup = BeautifulSoup(inxml, 'xml')
-
-    res = xml_to_json_flat(inxml, intagname, inmaxlevel)
+    res = xml_to_json_flat(inxml, intagname, inmaxlevel, infields)
 
     # Если тег не нашелся, возвращаем NULL
     if not res:
