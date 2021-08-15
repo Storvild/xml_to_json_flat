@@ -117,13 +117,14 @@ $BODY$
         json_list = json_fields_sync(json_list)
         return json_list
 
-    res = xml_to_json_flat(inxml, intagname, inmaxlevel, infields)
+    fields = json.loads(infields)
+    res = xml_to_json_flat(inxml, intagname, inmaxlevel, fields)
 
     # Если тег не нашелся, возвращаем NULL
     if not res:
         return None
 
-    res = json.dumps(res)
+    res = json.dumps(res, ensure_ascii=False, sort_keys=True)
     #plpy.info(res)
 
     return res
