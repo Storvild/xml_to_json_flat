@@ -30,6 +30,10 @@ class TestXmlToJsonFlat(unittest.TestCase):
 
     def test_xml_to_json_flat(self):
         from xml_to_json_flat import xml_to_json_flat
+
+        print('SOURCE XML:')
+        print(self.xml)
+
         # Простой xml:
         res1 = xml_to_json_flat('<tag>1</tag>', 'tag')
         self.assertEqual(res1[0]['tag'], '1')
@@ -48,15 +52,18 @@ class TestXmlToJsonFlat(unittest.TestCase):
         self.assertEqual(res3[1]['tag1_tag2_itemlist_item3'], '33')
         self.assertEqual(res3[1]['tag1_tag2_itemlist_Элемент4'], '44')
 
+        print('RESULT JSON:')
+        print(json.dumps(res3, ensure_ascii=False, indent=4, sort_keys=True))
+
         # Поиск tag2. Получаем только 1й уровень
         res4 = xml_to_json_flat(self.xml, 'tag2', inmaxlevel=1)
         self.assertNotIn('tag2_itemlist_item3', res4[0])
 
+        # Получаем весь XML
+        res5 = xml_to_json_flat(self.xml, '')
+        self.assertEqual(len(res5), 1)
+        self.assertEqual(res5[0]['tag1_tag2_item1'], '1')
 
-        print('SOURCE XML:')
-        print(self.xml)
-        print('RESULT JSON:')
-        print(json.dumps(res3, ensure_ascii=False, indent=4, sort_keys=True))
 
     def test_check_parent(self):
         from xml_to_json_flat import _check_parent
