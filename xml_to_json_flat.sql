@@ -3,7 +3,8 @@ CREATE OR REPLACE FUNCTION public.xml_to_json_flat(
     intagname character varying,
     infields jsonb DEFAULT '[]'::jsonb,
     inmaxlevel integer DEFAULT 0,
-    inuseattrs boolean DEFAULT true)
+    inuseattrs boolean DEFAULT true,
+    inskipfirsttag boolean DEFAULT false)
   RETURNS jsonb AS
 
 $BODY$
@@ -11,6 +12,8 @@ $BODY$
         inxml - Текст XML
         intagname - Тег, который необходимо найти в XML
         infields - Поля в виде json. Если передан NULL, то возвращаются все найденные поля
+        inuseattrs - Добавлять данные из атрибутов тега
+        inskipfirsttag - Убрать из начала ключа словаря имя искомого тега
         Возвращаемое значение - Список словарей json
     Использование:
     SELECT value->>'tag2_item1' AS item1, value->>'tag2_item2' AS item2 FROM jsonb_array_elements(
@@ -24,7 +27,7 @@ $BODY$
     import json
     from bs4 import BeautifulSoup
     
-    def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True):
+    def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True, inskipfirsttag=False):
         """
         Получение одной плоской записи из тега
         Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -39,6 +42,8 @@ $BODY$
         :type inmaxlevel: int
         :param inuseattrs: Выводить аттрибуты или нет
         :type inuseattrs: bool
+        :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
+        :type inskipfirsttag: bool
         :return: Плоский словарь с полями из имен тегов через _
         :rtype: dict
         """
@@ -48,15 +53,20 @@ $BODY$
             if inxmlobj.findChildren(recursive=False):
                 if inmaxlevel == 0 or inmaxlevel >= level:
                     for item in inxmlobj.findChildren(recursive=False):
-                        get_json_rec(item, inpreffix+'_'+item.name, level+1)
+                        get_json_rec(item, inpreffix + '_'+item.name, level+1)
             else:
                 if inpreffix not in data:  # Добавлять только если данных нет
                     if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
-                        data[inpreffix] = inxmlobj.text
+                        key = inpreffix.lstrip(' _')
+                        data[key] = inxmlobj.text
             if inuseattrs and inxmlobj.attrs:
                 for attr in inxmlobj.attrs:
-                    data[inpreffix + '_attr_' + attr] = inxmlobj.attrs[attr]
-        get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
+                    key = '{}_attr_{}'.format(inpreffix, attr).lstrip(' _')
+                    data[key] = inxmlobj.attrs[attr]
+        if inskipfirsttag:
+            get_json_rec(inxmlobj, '', 1)
+        else:
+            get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
         return data
 
 
@@ -87,7 +97,7 @@ $BODY$
         return True
 
 
-    def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True):
+    def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True, inskipfirsttag=False):
         """
         Получение записей c проверкой на соответствие переданным родительским тегам
         :param xml_item_list: Список XML-объектов, которые необходимо преобразовать в JSON
@@ -95,12 +105,14 @@ $BODY$
         :param infields: Список имен полей, которые должны попасть в результат
         :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
         :param inuseattrs: Добавлять данные из атрибутов
+        :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
         :return: Список плоских словарей с данными
         :type xml_item_list: list
         :type inparenttags: list
         :type infields: list
         :type inmaxlevel: int
         :type inuseattrs: bool
+        :type inskipfirsttag: bool
         :rtype: list
         """
         res = []
@@ -110,7 +122,8 @@ $BODY$
                 preffix = ''
                 if inparenttags:
                     preffix = '_'.join(inparenttags) + '_'
-                rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs)
+                rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel,
+                                              inuseattrs=inuseattrs, inskipfirsttag=inskipfirsttag)
                 res.append(rec)
         return res
 
@@ -139,22 +152,25 @@ $BODY$
         return res
 
 
-    def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True):
+    def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True, inskipfirsttag=False):
         """
         Основная функция принимает XML в виде текста. Ищет теги с именем intagname и выводит список
             найденного в виде плоского словаря
+        Внимание: Если внутри тега есть несколько рядом стоящих одинаковых тегов, то будет использован только первый
         :param inxm: XML текст
         :param intagname: Наименование тега, список которых необходимо найти в xml. Если значение пустое, использовать
             тег верхнего уровня
         :param infields: Список полей, которые должны быть выведены в результате. Пустой список - все поля
         :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
         :param inuseattrs: Выводить аттрибуты или нет
-        :type inxm: str
+        :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
+        :return: Список json строк
         :type intagname: str
         :type infields: list
         :type inmaxlevel: int
         :type inuseattrs: bool
-        :return: Список json строк
+        :type inxm: str
+        :type inskipfirsttag: bool
         :rtype: list
         """
         soup = BeautifulSoup(inxml, 'xml')
@@ -168,13 +184,14 @@ $BODY$
             tags = soup.contents
             parenttags = []
 
-        json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs)
+        json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel,
+                                 inuseattrs=inuseattrs, inskipfirsttag=inskipfirsttag)
         json_list = _json_fields_sync(json_list)
         return json_list
 
 
     fields = json.loads(infields)
-    res = xml_to_json_flat(inxml, intagname, infields=fields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs)
+    res = xml_to_json_flat(inxml, intagname, infields=fields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs, inskipfirsttag=inskipfirsttag)
 
     # Если тег не нашелся, возвращаем NULL
     if not res:

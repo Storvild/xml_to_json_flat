@@ -97,14 +97,17 @@ class TestXmlToJsonFlat(unittest.TestCase):
         #     intagname character varying,
         #     inmaxlevel integer DEFAULT 0,
         #     infields jsonb DEFAULT '[]'::jsonb)
+        #     inuseattrs - Добавлять данные из атрибутов тега
+        #     inskipfirsttag - Исключить из ключа словаря имя искомого тега
         #   RETURNS jsonb AS
         # $BODY$
-        def sql_function(inxml, intagname, inmaxlevel=0, infields='[]', inuseattrs=True):  # for test
+        def sql_function(inxml, intagname, inmaxlevel=0, infields='[]', inuseattrs=True, inskipfirsttag=False):  # for test
             # --- BEGIN BODY FUNCTION --- #
             import json
             from bs4 import BeautifulSoup
 
-            def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True):
+            def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True,
+                                        inskipfirsttag=False):
                 """
                 Получение одной плоской записи из тега
                 Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -119,6 +122,8 @@ class TestXmlToJsonFlat(unittest.TestCase):
                 :type inmaxlevel: int
                 :param inuseattrs: Выводить аттрибуты или нет
                 :type inuseattrs: bool
+                :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
+                :type inskipfirsttag: bool
                 :return: Плоский словарь с полями из имен тегов через _
                 :rtype: dict
                 """
@@ -133,12 +138,17 @@ class TestXmlToJsonFlat(unittest.TestCase):
                     else:
                         if inpreffix not in data:  # Добавлять только если данных нет
                             if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
-                                data[inpreffix] = inxmlobj.text
+                                key = inpreffix.lstrip(' _')
+                                data[key] = inxmlobj.text
                     if inuseattrs and inxmlobj.attrs:
                         for attr in inxmlobj.attrs:
-                            data[inpreffix + '_attr_' + attr] = inxmlobj.attrs[attr]
+                            key = '{}_attr_{}'.format(inpreffix, attr).lstrip(' _')
+                            data[key] = inxmlobj.attrs[attr]
 
-                get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
+                if inskipfirsttag:
+                    get_json_rec(inxmlobj, '', 1)
+                else:
+                    get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
                 return data
 
             def _check_parent(inxmlobj, inparenttags):
@@ -167,7 +177,8 @@ class TestXmlToJsonFlat(unittest.TestCase):
                         return False
                 return True
 
-            def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True):
+            def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True,
+                             inskipfirsttag=False):
                 """
                 Получение записей c проверкой на соответствие переданным родительским тегам
                 :param xml_item_list: Список XML-объектов, которые необходимо преобразовать в JSON
@@ -175,12 +186,14 @@ class TestXmlToJsonFlat(unittest.TestCase):
                 :param infields: Список имен полей, которые должны попасть в результат
                 :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
                 :param inuseattrs: Добавлять данные из атрибутов
+                :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
                 :return: Список плоских словарей с данными
                 :type xml_item_list: list
                 :type inparenttags: list
                 :type infields: list
                 :type inmaxlevel: int
                 :type inuseattrs: bool
+                :type inskipfirsttag: bool
                 :rtype: list
                 """
                 res = []
@@ -191,7 +204,7 @@ class TestXmlToJsonFlat(unittest.TestCase):
                         if inparenttags:
                             preffix = '_'.join(inparenttags) + '_'
                         rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel,
-                                                      inuseattrs=inuseattrs)
+                                                      inuseattrs=inuseattrs, inskipfirsttag=inskipfirsttag)
                         res.append(rec)
                 return res
 
@@ -218,22 +231,25 @@ class TestXmlToJsonFlat(unittest.TestCase):
                     res.append(new_rec)
                 return res
 
-            def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True):
+            def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True, inskipfirsttag=False):
                 """
                 Основная функция принимает XML в виде текста. Ищет теги с именем intagname и выводит список
                     найденного в виде плоского словаря
+                Внимание: Если внутри тега есть несколько рядом стоящих одинаковых тегов, то будет использован только первый
                 :param inxm: XML текст
                 :param intagname: Наименование тега, список которых необходимо найти в xml. Если значение пустое, использовать
                     тег верхнего уровня
                 :param infields: Список полей, которые должны быть выведены в результате. Пустой список - все поля
                 :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
                 :param inuseattrs: Выводить аттрибуты или нет
-                :type inxm: str
+                :param inskipfirsttag: Убрать из начала ключа словаря имя искомого тега
+                :return: Список json строк
                 :type intagname: str
                 :type infields: list
                 :type inmaxlevel: int
                 :type inuseattrs: bool
-                :return: Список json строк
+                :type inxm: str
+                :type inskipfirsttag: bool
                 :rtype: list
                 """
                 soup = BeautifulSoup(inxml, 'xml')
@@ -248,12 +264,14 @@ class TestXmlToJsonFlat(unittest.TestCase):
                     parenttags = []
 
                 json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel,
-                                         inuseattrs=inuseattrs)
+                                         inuseattrs=inuseattrs, inskipfirsttag=inskipfirsttag)
                 json_list = _json_fields_sync(json_list)
                 return json_list
 
+
             fields = json.loads(infields)
-            res = xml_to_json_flat(inxml, intagname, infields=fields, inmaxlevel=inmaxlevel)
+            res = xml_to_json_flat(inxml, intagname, infields=fields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs,
+                                   inskipfirsttag=inskipfirsttag)
 
             # Если тег не нашелся, возвращаем NULL
             if not res:
@@ -285,8 +303,8 @@ class TestXmlToJsonFlat(unittest.TestCase):
             obj = json.loads(res_json)
             self.assertEqual(obj[0]['tag1_tag2_itemlist_Элемент4'], '4')
             self.assertEqual(obj[1]['tag1_tag2_item1'], '11')
-            print('RESULT SQL FUNCTION #2:')
-            print(res_json)
+            #print('RESULT SQL FUNCTION #2:')
+            #print(res_json)
         
         # Проверка параметра infiels. Получаем только колонки "tag2_itemlist_Элемент4" и "tag2_item2"
         res_json = sql_function(self.xml, 'tag2', infields='["tag2_itemlist_Элемент4","tag2_item2"]', inmaxlevel=0, inuseattrs=True)
@@ -303,6 +321,16 @@ class TestXmlToJsonFlat(unittest.TestCase):
             obj = json.loads(res_json)
             self.assertEqual(obj[0]['tag2_item1'], '1')
             self.assertNotIn('tag2_itemlist_Элемент4', obj[0])
+
+        # Проверка параметра inmaxlevel. Получаем только 1 уровень
+        res_json = sql_function(self.xml, 'tag2', inuseattrs=True, inskipfirsttag=True)
+        self.assertIsNotNone(res_json)
+        if res_json:
+            obj = json.loads(res_json)
+            #print('RESULT SQL FUNCTION #4:')
+            #print(res_json)
+            self.assertEqual(obj[0]['item1'], '1')
+            self.assertEqual(obj[1]['item2'], '22')
 
 
 if __name__ == '__main__':
