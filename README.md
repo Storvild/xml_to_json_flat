@@ -8,7 +8,7 @@ pip install beautifulsoup4
 ```
 
 ### Описание xml_to_json_flat.py
-Ф-ция xml_to_json_flat принимает 3 параметра:   
+Ф-ция xml_to_json_flat принимает следующие параметры:   
 * inxml: str - XML в текстовом виде   
 * intagname: str - Наименование тега или путь к тегу tag1/tag2.   
 * infields: list - Список полей, которые попадут в результирующий json
