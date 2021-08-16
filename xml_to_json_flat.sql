@@ -1,7 +1,8 @@
 CREATE OR REPLACE FUNCTION public.xml_to_json_flat(
     inxml text,
     intagname character varying,
-    inmaxlevel integer DEFAULT 0)
+    inmaxlevel integer DEFAULT 0,
+    infields jsonb DEFAULT '[]'::jsonb)
   RETURNS jsonb AS
 $BODY$
     """ Получение из xml списка элементов по тегу tagname в виде json 
@@ -10,19 +11,18 @@ $BODY$
         infields - Поля в виде json. Если передан NULL, то возвращаются все найденные поля
         Возвращаемое значение - Список словарей json
     Использование:
-    SELECT value->>'item1' AS item1, value->>'item2' AS item2 FROM jsonb_array_elements(
-        btk_sys_xml_to_json_by_tagname(inxml, 'tag2', '["item1","item2"]'::jsonb) 
+    SELECT value->>'tag2_item1' AS item1, value->>'tag2_item2' AS item2 FROM jsonb_array_elements(
+        xml_to_json_flat(inxml, 'tag2', '["tag2_item1","tag2_item2"]'::jsonb, 0)
     ) 
-    SELECT value->>'item1' AS item1, value->>'item2' AS item2 FROM jsonb_array_elements(
-        btk_sys_xml_to_json_by_tagname(inxml, 'tag2') 
+    SELECT value->>'tag2_item1' AS item1, value->>'tag2_item2' AS item2 FROM jsonb_array_elements(
+        xml_to_json_flat(inxml, 'tag2')
     ) 
 
     """
     import json
     from bs4 import BeautifulSoup
     
-
-    def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
+    def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
         """
         Получение одной плоской записи из тега
         Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -31,6 +31,8 @@ $BODY$
         :type inxmlobj: bs4.element.Tag
         :param inpreffix: Строка префикса для json поля
         :type inpreffix: str
+        :param infields: Список наименований полей которые должны быть в результате. Пустой список - все поля
+        :type infields: list
         :param inmaxlevel: Максимальное кол-во погружения в xml
         :type inmaxlevel: int
         :return: Плоский словарь с полями из имен тегов через _
@@ -51,7 +53,8 @@ $BODY$
         get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
         return data
 
-    def check_parent(inxmlobj, inparenttags):
+
+    def _check_parent(inxmlobj, inparenttags):
         """
         Проверка что тег inxmlobj вложен в родительские теги inparenttags
         Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -74,22 +77,24 @@ $BODY$
                 return False
         return True
 
-    def get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
+
+    def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0):
         """ Получение записей """
         res = []
         if type(inparenttags) == str:
             inparenttags = inparenttags.split('/')
         for item in xml_item_list:
             # Проверяем соответствуют ли родительские теги переданным
-            if check_parent(item, inparenttags):
+            if _check_parent(item, inparenttags):
                 preffix = ''
                 if inparenttags:
                     preffix = '_'.join(inparenttags) + '_'
-                rec = xmlobj_to_json_flat(item, preffix, inmaxlevel, infields=infields)
+                rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel)
                 res.append(rec)
         return res
 
-    def json_fields_sync(inlist):
+
+    def _json_fields_sync(inlist):
         """ Синхронизация колонок (приведение к одинаковому количеству во всех строках) """
         res = []
         fields = set()
@@ -105,20 +110,22 @@ $BODY$
             res.append(new_rec)
         return res
 
-    def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
+
+    def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0):
         soup = BeautifulSoup(inxml, 'xml')
         # Разделяем parent-тег
         tagnamesplit = intagname.split('/')
         tagname = tagnamesplit[-1]
         parenttags = tagnamesplit[:-1]
         tags = soup.find_all(tagname)  # Список тегов
-        
-        json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
-        json_list = json_fields_sync(json_list)
+
+        json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel)
+        json_list = _json_fields_sync(json_list)
         return json_list
 
+
     fields = json.loads(infields)
-    res = xml_to_json_flat(inxml, intagname, inmaxlevel, fields)
+    res = xml_to_json_flat(inxml, intagname, infields=fields, inmaxlevel=inmaxlevel)
 
     # Если тег не нашелся, возвращаем NULL
     if not res:

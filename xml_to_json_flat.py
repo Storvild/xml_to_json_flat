@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from bs4.element import ResultSet
 
 
-def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
+def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
     """
     Получение одной плоской записи из тега
     Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -18,6 +18,8 @@ def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
     :type inxmlobj: bs4.element.Tag
     :param inpreffix: Строка префикса для json поля
     :type inpreffix: str
+    :param infields: Список наименований полей которые должны быть в результате. Пустой список - все поля
+    :type infields: list
     :param inmaxlevel: Максимальное кол-во погружения в xml
     :type inmaxlevel: int
     :return: Плоский словарь с полями из имен тегов через _
@@ -63,7 +65,7 @@ def _check_parent(inxmlobj, inparenttags):
     return True
 
 
-def _get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
+def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0):
     """ Получение записей """
     res = []
     if type(inparenttags) == str:
@@ -74,7 +76,7 @@ def _get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
             preffix = ''
             if inparenttags:
                 preffix = '_'.join(inparenttags) + '_'
-            rec = _xmlobj_to_jsonobj_flat(item, preffix, inmaxlevel, infields)
+            rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel)
             res.append(rec)
     return res
 
@@ -96,7 +98,7 @@ def _json_fields_sync(inlist):
     return res
 
 
-def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
+def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0):
     soup = BeautifulSoup(inxml, 'xml')
     # Разделяем parent-тег
     tagnamesplit = intagname.split('/')
@@ -104,7 +106,7 @@ def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
     parenttags = tagnamesplit[:-1]
     tags = soup.find_all(tagname)  # Список тегов
 
-    json_list = _get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
+    json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel)
     json_list = _json_fields_sync(json_list)
     return json_list
 
@@ -119,7 +121,7 @@ def main():
     with open(r'xml_examples/example01.xml', 'r', encoding='utf-8') as f:
         inxml = f.read()
 
-    json_list = xml_to_json_flat(inxml, intagname, infields=infields)
+    json_list = xml_to_json_flat(inxml, intagname, infields=infields, inmaxlevel=0)
 
     pprint(json_list)
     
