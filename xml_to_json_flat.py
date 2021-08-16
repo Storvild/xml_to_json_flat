@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from bs4.element import ResultSet
 
 
-def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
+def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
     """
     Получение одной плоской записи из тега
     Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -39,7 +39,7 @@ def xmlobj_to_json_flat(inxmlobj, inpreffix='', inmaxlevel=0, infields=[]):
     return data
 
 
-def check_parent(inxmlobj, inparenttags):
+def _check_parent(inxmlobj, inparenttags):
     """
     Проверка что тег inxmlobj вложен в родительские теги inparenttags
     Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -63,23 +63,23 @@ def check_parent(inxmlobj, inparenttags):
     return True
 
 
-def get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
+def _get_records(xml_item_list, inparenttags=[], inmaxlevel=0, infields=[]):
     """ Получение записей """
     res = []
     if type(inparenttags) == str:
         inparenttags = inparenttags.split('/')
     for item in xml_item_list:
         # Проверяем соответствуют ли родительские теги переданным
-        if check_parent(item, inparenttags):
+        if _check_parent(item, inparenttags):
             preffix = ''
             if inparenttags:
                 preffix = '_'.join(inparenttags) + '_'
-            rec = xmlobj_to_json_flat(item, preffix, inmaxlevel, infields)
+            rec = _xmlobj_to_jsonobj_flat(item, preffix, inmaxlevel, infields)
             res.append(rec)
     return res
 
 
-def json_fields_sync(inlist):
+def _json_fields_sync(inlist):
     """ Синхронизация колонок (приведение к одинаковому количеству во всех строках) """
     res = []
     fields = set()
@@ -104,8 +104,8 @@ def xml_to_json_flat(inxml, intagname, inmaxlevel=0, infields=[]):
     parenttags = tagnamesplit[:-1]
     tags = soup.find_all(tagname)  # Список тегов
 
-    json_list = get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
-    json_list = json_fields_sync(json_list)
+    json_list = _get_records(tags, inparenttags=parenttags, inmaxlevel=inmaxlevel, infields=infields)
+    json_list = _json_fields_sync(json_list)
     return json_list
 
 
