@@ -11,10 +11,12 @@ pip install beautifulsoup4
 Ф-ция xml_to_json_flat принимает 3 параметра:   
 * inxml: str - XML в текстовом виде   
 * intagname: str - Наименование тега или путь к тегу tag1/tag2.   
-* inmaxlevel: int - Кол-во уровней обрабатываемых рекурсией. 0 - без ограничений.
 * infields: list - Список полей, которые попадут в результирующий json
+* inmaxlevel: int - Кол-во уровней обрабатываемых рекурсией. 0 - без ограничений.
+* inuseattrs: bool - Использовать аттрибуты тега для добавления данных
 
 ### Использование
+Исходный XML:
 ```python
 import json
 from xml_to_json_flat import xml_to_json_flat
@@ -23,6 +25,7 @@ xml = """<?xml version="1.0" encoding="utf-8"?>
     <tag2>
         <item1>1</item1>
         <item2>2</item2>
+        <item3 Свойство1="Значение1" prop2="Property2" />
         <itemlist> 
             <item3>3</item3>
             <item4>4</item4>
@@ -37,23 +40,35 @@ xml = """<?xml version="1.0" encoding="utf-8"?>
         </itemlist>
     </tag2>
 </tag1>"""
-res = xml_to_json_flat(xml, 'tag1/tag2')
+res = xml_to_json_flat(xml, 'tag1/tag2', infields=[], inmaxlevel=0, inuseattrs=True)
 json = json.dumps(res, ensure_ascii=False, indent=4, sort_keys=True)
 print(json)
- 
-```
-Результат:
-```
-[{'tag2_item1': '1',
-  'tag2_item2': '2',
-  'tag2_itemlist_item3': '3',
-  'tag2_itemlist_item4': '4'},
- {'tag2_item1': '11',
-  'tag2_item2': '22',
-  'tag2_itemlist_item3': '33',
-  'tag2_itemlist_item4': '44'}]
 ```
 
+
+Результат:
+```
+[
+    {
+		'tag2_item1': '1',
+		'tag2_item2': '2',
+		'tag2_item3': '',
+		'tag2_item3_attr_prop2': 'Property2',
+		'tag2_item3_attr_Свойство1': 'Значение1',
+		'tag2_itemlist_item3': '3',
+		'tag2_itemlist_item4': '4'
+	}, 
+    {
+		'tag2_item1': '11',
+		'tag2_item2': '22',
+		'tag2_item3': None,
+		'tag2_item3_attr_prop2': None,
+		'tag2_item3_attr_Свойство1': None,
+		'tag2_itemlist_item3': '33',
+		'tag2_itemlist_item4': '44'
+	}
+]
+```
 
 ### Ф-ция для PostgreSQL
 
@@ -65,12 +80,14 @@ print(json)
 SELECT value->>'tag2_item1' AS item1
      , value->>'tag2_item2' AS item2
      , value->>'tag2_itemlist_item4' AS itemlist4
+     , value->>'tag2_item3_attr_prop2' AS item3prop
 FROM jsonb_array_elements(btk_sys_xml_to_json_flat_by_tagname('
 <?xml version="1.0" encoding="utf-8"?>
     <tag1>
         <tag2>
             <item1>1</item1>
             <item2>2</item2>
+            <item3 Свойство1="Значение1" prop2="Property2" />
             <itemlist> 
                 <item3>3</item3>
                 <item4>4</item4>
