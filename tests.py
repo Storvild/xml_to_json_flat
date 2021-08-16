@@ -9,6 +9,7 @@ class TestXmlToJsonFlat(unittest.TestCase):
             <tag2>
                 <item1>1</item1>
                 <item2>2</item2>
+                <item3 Свойство1="Значение1" prop2="Property2" />
                 <itemlist> 
                     <item3>3</item3>
                     <Элемент4>4</Элемент4>
@@ -28,26 +29,27 @@ class TestXmlToJsonFlat(unittest.TestCase):
         </tag1>"""
 
     def test_xml_to_json_flat(self):
-        from xml_to_json_flat import _xml_to_json_flat
+        from xml_to_json_flat import xml_to_json_flat
         # Простой xml:
-        res1 = _xml_to_json_flat('<tag>1</tag>', 'tag')
+        res1 = xml_to_json_flat('<tag>1</tag>', 'tag')
         self.assertEqual(res1[0]['tag'], '1')
 
         # Поиск tag2
-        res2 = _xml_to_json_flat(self.xml, 'tag2')
+        res2 = xml_to_json_flat(self.xml, 'tag2')
         self.assertEqual(res2[0]['tag2_item1'], '1')
         self.assertIn('tag2_itemlist_item3', res2[0])
         self.assertEqual(res2[0]['tag2_itemlist_item3'], '3')
         self.assertEqual(res2[1]['tag2_itemlist_Элемент4'], '44')
+        self.assertEqual(res2[0]['tag2_item3_attr_Свойство1'], 'Значение1')
 
         # Поиск tag2 входящего в tag1
-        res3 = _xml_to_json_flat(self.xml, 'tag1/tag2')
+        res3 = xml_to_json_flat(self.xml, 'tag1/tag2')
         self.assertEqual(res3[0]['tag1_tag2_item2'], '2')
         self.assertEqual(res3[1]['tag1_tag2_itemlist_item3'], '33')
         self.assertEqual(res3[1]['tag1_tag2_itemlist_Элемент4'], '44')
 
         # Поиск tag2. Получаем только 1й уровень
-        res4 = _xml_to_json_flat(self.xml, 'tag2', inmaxlevel=1)
+        res4 = xml_to_json_flat(self.xml, 'tag2', inmaxlevel=1)
         self.assertNotIn('tag2_itemlist_item3', res4[0])
 
 
@@ -95,7 +97,7 @@ class TestXmlToJsonFlat(unittest.TestCase):
             import json
             from bs4 import BeautifulSoup
 
-            def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
+            def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True):
                 """
                 Получение одной плоской записи из тега
                 Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -108,10 +110,11 @@ class TestXmlToJsonFlat(unittest.TestCase):
                 :type infields: list
                 :param inmaxlevel: Максимальное кол-во погружения в xml
                 :type inmaxlevel: int
+                :param inuseattrs: Выводить аттрибуты или нет
+                :type inuseattrs: bool
                 :return: Плоский словарь с полями из имен тегов через _
                 :rtype: dict
                 """
-
                 # Получаем json из одного тега в плоском виде
                 data = {}
 
@@ -124,6 +127,9 @@ class TestXmlToJsonFlat(unittest.TestCase):
                         if inpreffix not in data:  # Добавлять только если данных нет
                             if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
                                 data[inpreffix] = inxmlobj.text
+                    if inuseattrs and inxmlobj.attrs:
+                        for attr in inxmlobj.attrs:
+                            data[inpreffix + '_attr_' + attr] = inxmlobj.attrs[attr]
 
                 get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
                 return data
@@ -151,7 +157,7 @@ class TestXmlToJsonFlat(unittest.TestCase):
                         return False
                 return True
 
-            def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0):
+            def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True):
                 """ Получение записей """
                 res = []
                 if type(inparenttags) == str:
@@ -162,7 +168,8 @@ class TestXmlToJsonFlat(unittest.TestCase):
                         preffix = ''
                         if inparenttags:
                             preffix = '_'.join(inparenttags) + '_'
-                        rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel)
+                        rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel,
+                                                      inuseattrs=inuseattrs)
                         res.append(rec)
                 return res
 
@@ -182,7 +189,23 @@ class TestXmlToJsonFlat(unittest.TestCase):
                     res.append(new_rec)
                 return res
 
-            def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0):
+            def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True):
+                """
+                Основная функция принимает XML в виде текста. Ищет теги с именем intagname и выводит список
+                    найденного в виде плоского словаря
+                :param inxm: XML текст
+                :param intagname: Наименование тега, список которых необходимо найти в xml
+                :param infields: Список полей, которые должны быть выведены в результате. Пустой список - все поля
+                :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
+                :param inuseattrs: Выводить аттрибуты или нет
+                :type inxm: str
+                :type intagname: str
+                :type infields: list
+                :type inmaxlevel: int
+                :type inuseattrs: bool
+                :return: Список json строк
+                :rtype: list
+                """
                 soup = BeautifulSoup(inxml, 'xml')
                 # Разделяем parent-тег
                 tagnamesplit = intagname.split('/')
@@ -190,7 +213,8 @@ class TestXmlToJsonFlat(unittest.TestCase):
                 parenttags = tagnamesplit[:-1]
                 tags = soup.find_all(tagname)  # Список тегов
 
-                json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel)
+                json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel,
+                                         inuseattrs=inuseattrs)
                 json_list = _json_fields_sync(json_list)
                 return json_list
 

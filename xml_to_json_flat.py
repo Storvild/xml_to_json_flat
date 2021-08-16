@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from bs4.element import ResultSet
 
 
-def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
+def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0, inuseattrs=True):
     """
     Получение одной плоской записи из тега
     Пример XML: <parent1><parent2><item1>123</item1></parent2><parent21>456</parent21></parent1>
@@ -22,10 +22,11 @@ def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
     :type infields: list
     :param inmaxlevel: Максимальное кол-во погружения в xml
     :type inmaxlevel: int
+    :param inuseattrs: Выводить аттрибуты или нет
+    :type inuseattrs: bool
     :return: Плоский словарь с полями из имен тегов через _
     :rtype: dict
     """
-
     # Получаем json из одного тега в плоском виде
     data = {}
     def get_json_rec(inxmlobj, inpreffix, level):
@@ -37,6 +38,9 @@ def _xmlobj_to_jsonobj_flat(inxmlobj, inpreffix='', infields=[], inmaxlevel=0):
             if inpreffix not in data:  # Добавлять только если данных нет
                 if not infields or inpreffix in infields:  # Добавлять только если поле есть в infields
                     data[inpreffix] = inxmlobj.text
+        if inuseattrs and inxmlobj.attrs:
+            for attr in inxmlobj.attrs:
+                data[inpreffix + '_attr_' + attr] = inxmlobj.attrs[attr]
     get_json_rec(inxmlobj, inpreffix + inxmlobj.name, 1)
     return data
 
@@ -65,7 +69,7 @@ def _check_parent(inxmlobj, inparenttags):
     return True
 
 
-def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0):
+def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0, inuseattrs=True):
     """ Получение записей """
     res = []
     if type(inparenttags) == str:
@@ -76,7 +80,7 @@ def _get_records(xml_item_list, inparenttags=[], infields=[], inmaxlevel=0):
             preffix = ''
             if inparenttags:
                 preffix = '_'.join(inparenttags) + '_'
-            rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel)
+            rec = _xmlobj_to_jsonobj_flat(item, preffix, infields=infields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs)
             res.append(rec)
     return res
 
@@ -98,7 +102,23 @@ def _json_fields_sync(inlist):
     return res
 
 
-def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0):
+def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0, inuseattrs=True):
+    """
+    Основная функция принимает XML в виде текста. Ищет теги с именем intagname и выводит список
+        найденного в виде плоского словаря
+    :param inxm: XML текст
+    :param intagname: Наименование тега, список которых необходимо найти в xml
+    :param infields: Список полей, которые должны быть выведены в результате. Пустой список - все поля
+    :param inmaxlevel: Максимальный уровень погружения. 0 - без ограничений
+    :param inuseattrs: Выводить аттрибуты или нет
+    :type inxm: str
+    :type intagname: str
+    :type infields: list
+    :type inmaxlevel: int
+    :type inuseattrs: bool
+    :return: Список json строк
+    :rtype: list
+    """
     soup = BeautifulSoup(inxml, 'xml')
     # Разделяем parent-тег
     tagnamesplit = intagname.split('/')
@@ -106,7 +126,7 @@ def xml_to_json_flat(inxml, intagname, infields=[], inmaxlevel=0):
     parenttags = tagnamesplit[:-1]
     tags = soup.find_all(tagname)  # Список тегов
 
-    json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel)
+    json_list = _get_records(tags, inparenttags=parenttags, infields=infields, inmaxlevel=inmaxlevel, inuseattrs=inuseattrs)
     json_list = _json_fields_sync(json_list)
     return json_list
 
@@ -121,11 +141,11 @@ def main():
     with open(r'xml_examples/example01.xml', 'r', encoding='utf-8') as f:
         inxml = f.read()
 
-    json_list = xml_to_json_flat(inxml, intagname, infields=infields, inmaxlevel=0)
+    json_list = xml_to_json_flat(inxml, intagname, infields=infields, inmaxlevel=0, inuseattrs=True)
 
     pprint(json_list)
     
-    with open(r'xml_examples/example01.json', 'w') as fw:
+    with open(r'xml_examples/example01a.json', 'w') as fw:
         json.dump(json_list, fw, ensure_ascii=False, indent=4, sort_keys=True)
 
 
